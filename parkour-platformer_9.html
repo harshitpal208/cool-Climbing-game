@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Parkour Climb</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: linear-gradient(#87CEEB, #b3e0f2);
+    overflow: hidden;
+    font-family: 'Segoe UI', Arial, sans-serif;
+  }
+  #gameContainer {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+  }
+  canvas {
+    display: block;
+    background: transparent;
+    touch-action: none;
+  }
+  #hud {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    color: #22333b;
+    font-size: 18px;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.55);
+    padding: 8px 14px;
+    border-radius: 10px;
+  }
+  #msg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #fff;
+    background: rgba(20, 30, 40, 0.85);
+    padding: 28px 40px;
+    border-radius: 16px;
+    display: none;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+  #msg h1 { margin: 0 0 8px 0; font-size: 28px; }
+  #msg p { margin: 4px 0; opacity: 0.85; }
+  #msg button {
+    margin-top: 14px;
+    padding: 16px 28px;
+    font-size: 17px;
+    border: none;
+    border-radius: 10px;
+    background: #ffb703;
+    color: #22333b;
+    font-weight: bold;
+    cursor: pointer;
+    min-height: 48px;
+  }
+  #msg button:hover { background: #ffc94d; }
+  #confettiCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 5;
+  }
+  #hud, #levelBar, #controls, #mobileControls { z-index: 6; }
+  #msg, .overlayScreen { z-index: 20; }
+  #loadingScreen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(#87CEEB, #b3e0f2);
+    z-index: 50;
+    transition: opacity 0.5s ease;
+  }
+  #loadingScreen.fadeOut { opacity: 0; pointer-events: none; }
+  .loadingContent { text-align: center; color: #22333b; padding: 20px; }
+  .loadingIcon { font-size: 64px; animation: loadBounce 1.2s ease-in-out infinite; }
+  @keyframes loadBounce {
+    0%, 100% { transform: translateY(0) rotate(-4deg); }
+    50% { transform: translateY(-10px) rotate(4deg); }
+  }
+  .loadingContent h1 {
+    font-size: 32px;
+    margin: 10px 0 4px;
+    letter-spacing: 1px;
+    text-shadow: 0 2px 4px rgba(255,255,255,0.6);
+  }
+  .loadingContent .tagline { font-size: 14px; opacity: 0.75; margin-bottom: 22px; }
+  .loadingBarOuter {
+    width: 240px;
+    height: 14px;
+    background: rgba(34,51,59,0.15);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 0 auto;
+  }
+  .loadingBarFill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #ffb703, #f4a261);
+    border-radius: 8px;
+    transition: width 1.3s ease-out;
+  }
+  .loadingTip { margin-top: 16px; font-size: 12px; opacity: 0.65; max-width: 260px; }
+  #mobileControls {
+    position: absolute;
+    bottom: 20px;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 0 22px;
+  }
+  .moveButtons { display: flex; gap: 14px; }
+  .ctrlBtn {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(34, 51, 59, 0.55);
+    color: #fff;
+    font-size: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  }
+  .ctrlBtn:active { background: rgba(34, 51, 59, 0.85); transform: scale(0.95); }
+  .jumpBtn {
+    width: 104px;
+    height: 104px;
+    font-size: 38px;
+    background: rgba(255, 183, 3, 0.9);
+    color: #22333b;
+  }
+  .jumpBtn:active { background: rgba(255, 183, 3, 1); }
+  @media (max-width: 700px), (pointer: coarse) {
+    #controls { display: none; }
+  }
+  .overlayScreen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at center, rgba(50,40,10,0.75), rgba(10,10,20,0.9));
+  }
+  .overlayScreen .winContent {
+    text-align: center;
+    color: #fff;
+    padding: 20px 30px;
+  }
+  .overlayScreen .trophy {
+    font-size: 72px;
+    animation: winBounce 1.1s ease-in-out infinite;
+  }
+  @keyframes winBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-14px); }
+  }
+  .overlayScreen h1 {
+    font-size: 34px;
+    margin: 12px 0 6px;
+    color: #ffd166;
+    text-shadow: 0 0 18px rgba(255, 209, 102, 0.7);
+  }
+  .overlayScreen p { font-size: 16px; opacity: 0.9; margin: 0 0 20px; }
+  .overlayScreen .winButtons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .overlayScreen button {
+    padding: 16px 26px;
+    font-size: 16px;
+    border: none;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    background: #ffb703;
+    color: #22333b;
+    min-height: 48px;
+  }
+  .overlayScreen button:hover { background: #ffc94d; }
+  .overlayScreen button.secondary {
+    background: transparent;
+    border: 2px solid #fff;
+    color: #fff;
+  }
+  .overlayScreen button.secondary:hover { background: rgba(255,255,255,0.15); }
+  .skinProgressWrap { margin: 0 0 20px; }
+  .skinProgressLabel { font-size: 13px; opacity: 0.85; margin-bottom: 6px; }
+  #controls {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #22333b;
+    background: rgba(255,255,255,0.55);
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  #levelBar {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: min(94vw, 420px);
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.55);
+    padding: 10px 12px;
+    border-radius: 12px;
+    color: #22333b;
+    font-size: 14px;
+    font-weight: bold;
+  }
+  #levelBar button {
+    border: none;
+    background: #6d597a;
+    color: #fff;
+    width: 46px;
+    height: 46px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 20px;
+  }
+  #levelBar button:hover { background: #8d7ca3; }
+  #levelBar select, #levelBar input[type="number"] {
+    font-weight: bold;
+    border-radius: 8px;
+    border: none;
+    padding: 10px 8px;
+    font-size: 16px;
+    width: 64px;
+    height: 46px;
+    text-align: center;
+    box-sizing: border-box;
+  }
+  #levelBar .restart {
+    background: #e76f51;
+  }
+  #levelBar .restart:hover { background: #f4a261; }
+  #levelBar .skinsBtn { background: #2a9d8f; }
+  #levelBar .skinsBtn:hover { background: #48b8a8; }
+
+  .modalScreen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10,10,20,0.55);
+    z-index: 25;
+  }
+  .modalScreen .panel {
+    background: rgba(255,255,255,0.95);
+    border-radius: 16px;
+    padding: 22px 26px;
+    max-width: 92vw;
+    max-height: 84vh;
+    overflow-y: auto;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+  }
+  .modalScreen h2 { margin: 0 0 4px; color: #22333b; }
+  .modalScreen .subtext { font-size: 13px; color: #556; margin-bottom: 16px; }
+  #skinGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 96px);
+    gap: 14px;
+    justify-content: center;
+  }
+  .skinCard {
+    width: 96px;
+    cursor: pointer;
+    border: 3px solid transparent;
+    border-radius: 10px;
+    padding: 8px;
+    background: rgba(0,0,0,0.03);
+  }
+  .skinCard.selected { border-color: #ffb703; background: rgba(255,183,3,0.15); }
+  .skinCard.locked { cursor: not-allowed; opacity: 0.55; }
+  .skinSwatch {
+    width: 100%;
+    height: 64px;
+    border-radius: 8px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .skinSwatch .lockIcon { font-size: 22px; }
+  .skinName { font-size: 12px; font-weight: bold; color: #22333b; margin-top: 5px; }
+  .skinReq { font-size: 11px; color: #888; }
+  .modalScreen .closeBtn {
+    margin-top: 18px;
+    padding: 15px 26px;
+    border: none;
+    border-radius: 10px;
+    background: #22333b;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 15px;
+    min-height: 48px;
+  }
+  .modalScreen input[type="text"], .modalScreen input[type="password"], .modalScreen textarea {
+    display: block;
+    width: 240px;
+    margin: 10px auto;
+    padding: 14px 14px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    box-sizing: border-box;
+    min-height: 48px;
+  }
+  .modalScreen textarea.codeBox {
+    width: 280px;
+    height: 74px;
+    min-height: 74px;
+    resize: none;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    word-break: break-all;
+  }
+  .modalScreen .divider { font-size: 11px; color: #999; margin: 14px 0 4px; }
+  .modalScreen .primaryBtn {
+    padding: 15px 22px;
+    border: none;
+    border-radius: 10px;
+    background: #ffb703;
+    color: #22333b;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 15px;
+    margin: 6px 5px 0;
+    min-height: 48px;
+  }
+  .modalScreen .primaryBtn:hover { background: #ffc94d; }
+  .modalScreen .formMsg { font-size: 12px; min-height: 16px; margin-top: 8px; }
+  .modalScreen .formMsg.error { color: #e63946; }
+  .modalScreen .formMsg.success { color: #2a9d8f; }
+  .accountStatus { font-size: 12px; color: #556; margin-bottom: 10px; }
+  .lbTabs { display: flex; gap: 8px; justify-content: center; margin-bottom: 8px; flex-wrap: wrap; }
+  .lbTab {
+    padding: 12px 18px;
+    border: none;
+    border-radius: 20px;
+    background: rgba(0,0,0,0.06);
+    color: #22333b;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .lbTab.active { background: #ffb703; }
+  #lbList {
+    max-height: 240px;
+    overflow-y: auto;
+    margin: 10px 0;
+    text-align: left;
+    min-width: 220px;
+  }
+  .lbRow {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .lbRow:nth-child(odd) { background: rgba(0,0,0,0.03); }
+  .lbRow.me { background: rgba(255,183,3,0.25); font-weight: bold; }
+  .lbRow.top3 .lbRank { font-size: 15px; }
+  .lbRank { width: 34px; color: #888; }
+  .lbName { flex: 1; padding: 0 8px; color: #22333b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lbLevel { color: #2a9d8f; font-weight: bold; white-space: nowrap; }
+  .lbEmpty { font-size: 13px; color: #888; padding: 10px 0; }
+  #skinToast {
+    position: absolute;
+    top: 70px;
+    left: 50%;
+    transform: translate(-50%, -10px);
+    background: rgba(20,30,40,0.92);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    z-index: 30;
+    text-align: center;
+  }
+  #skinToast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<div id="gameContainer">
+  <div id="loadingScreen">
+    <div class="loadingContent">
+      <div class="loadingIcon">🧗</div>
+      <h1>PARKOUR CLIMB</h1>
+      <div class="tagline">1000 levels of vertical chaos</div>
+      <div class="loadingBarOuter"><div class="loadingBarFill" id="loadingBarFill"></div></div>
+      <div class="loadingTip" id="loadingTip"></div>
+    </div>
+  </div>
+  <canvas id="game"></canvas>
+  <canvas id="confettiCanvas"></canvas>
+  <div id="hud">Level <span id="levelNum">1</span>/1000 · Deaths: <span id="deaths">0</span> · ⏱ <span id="hudTimer">0:00</span><span id="hudAccount"></span></div>
+  <div id="levelBar">
+    <button id="prevLevel" title="Previous level">◀</button>
+    <input type="number" id="levelInput" min="1" max="1000" value="1" title="Jump to level">
+    <button id="goLevel" title="Go to level">Go</button>
+    <button id="nextLevel" title="Next level">▶</button>
+    <button id="restartLevel" class="restart" title="Restart this level">⟲</button>
+    <button id="openSkins" class="skinsBtn" title="Skins">🎨</button>
+    <button id="openAccount" class="skinsBtn" title="Save / Load Progress">👤</button>
+    <button id="openLeaderboard" class="skinsBtn" title="Leaderboard">🏆</button>
+  </div>
+  <div id="controls">← → move · ↑ / Space jump · R restart level</div>
+  <div id="mobileControls">
+    <div class="moveButtons">
+      <button id="btnLeft" class="ctrlBtn">◀</button>
+      <button id="btnRight" class="ctrlBtn">▶</button>
+    </div>
+    <button id="btnJump" class="ctrlBtn jumpBtn">↑</button>
+  </div>
+  <div id="msg">
+    <h1 id="msgTitle">You fell!</h1>
+    <p id="msgSub">Back to the start of the level.</p>
+    <button id="msgBtn">Continue</button>
+  </div>
+  <div id="levelCompleteScreen" class="overlayScreen">
+    <div class="winContent">
+      <div class="trophy" id="lcIcon">⭐</div>
+      <h1 id="lcTitle">Level 1 Complete!</h1>
+      <p id="lcSub">Nice work!</p>
+      <div class="skinProgressWrap">
+        <div class="skinProgressLabel" id="lcSkinLabel"></div>
+        <div class="loadingBarOuter"><div class="loadingBarFill" id="lcSkinBarFill"></div></div>
+      </div>
+      <button id="lcNextBtn">Next Level</button>
+    </div>
+  </div>
+  <div id="winScreen" class="overlayScreen">
+    <div class="winContent">
+      <div class="trophy">🏆</div>
+      <h1>You beat the game!</h1>
+      <p>All 1000 levels complete in <span id="winTime">0:00</span> — <span id="winDeaths">0</span> total fall(s) along the way.</p>
+      <div class="winButtons">
+        <button id="winReplayBtn">Replay Level 1000</button>
+        <button id="winRestartBtn" class="secondary">Play Again From Level 1</button>
+      </div>
+    </div>
+  </div>
+  <div id="skinModal" class="modalScreen">
+    <div class="panel">
+      <h2>Skins</h2>
+      <div class="subtext">Unlock a new look every 10 levels you complete.</div>
+      <div id="skinGrid"></div>
+      <button class="closeBtn" id="closeSkins">Close</button>
+    </div>
+  </div>
+  <div id="accountModal" class="modalScreen">
+    <div class="panel">
+      <h2 id="accountTitle">Save Progress</h2>
+      <div class="subtext" id="accountSubtext">There's no server here, so progress is saved as a code you copy yourself — enter a username and password, then create or restore a save.</div>
+      <div id="accountLoggedOut">
+        <input type="text" id="accUsername" placeholder="Username" autocomplete="off">
+        <input type="password" id="accPassword" placeholder="Password" autocomplete="off">
+        <button class="primaryBtn" id="accCreate">Create New Save</button>
+        <div class="divider">— or restore an existing save —</div>
+        <textarea class="codeBox" id="accCodeInput" placeholder="Paste your save code here"></textarea>
+        <button class="primaryBtn" id="accRestore">Restore This Save</button>
+        <div class="formMsg" id="accFormMsg"></div>
+      </div>
+      <div id="accountLoggedIn" style="display:none;">
+        <div class="accountStatus">Tracking save as <strong id="accWhoami"></strong></div>
+        <div class="subtext">Copy this code and keep it somewhere safe. Paste it back in next time (with your username and password) to restore this exact progress.</div>
+        <textarea class="codeBox" id="accCodeOutput" readonly></textarea>
+        <button class="primaryBtn" id="accCopyCode">Copy Code</button>
+        <button class="primaryBtn" id="accLogout">Forget This Save</button>
+        <div class="formMsg" id="accLoggedInMsg"></div>
+      </div>
+      <button class="closeBtn" id="closeAccount">Close</button>
+    </div>
+  </div>
+  <div id="leaderboardModal" class="modalScreen">
+    <div class="panel">
+      <h2>Leaderboard</h2>
+      <div class="lbTabs">
+        <button class="lbTab active" id="lbTabLevel">🏔 By Level</button>
+        <button class="lbTab" id="lbTabSpeed">⏱ By Speed</button>
+      </div>
+      <div class="subtext" id="lbSubtext">Top players by highest level reached.</div>
+      <div id="lbList"></div>
+      <button class="primaryBtn" id="lbSubmit">Submit My Score</button>
+      <button class="primaryBtn" id="lbRefresh">Refresh</button>
+      <div class="formMsg" id="lbMsg"></div>
+      <button class="closeBtn" id="closeLeaderboard">Close</button>
+    </div>
+  </div>
+  <div id="skinToast"></div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ---------- World ----------
+// Platforms climb upward (lower y = higher up). World is wider/taller than screen; camera follows player.
+const GRAVITY = 0.55;
+const MOVE_SPEED = 4.6;
+const JUMP_FORCE = -12.2;
+const TOTAL_LEVELS = 1000;
+
+// Seeded PRNG so each level number always generates the same course
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+// Generates a parkour course for level n (1-100). Difficulty scales gap size,
+// height gain, platform width, and moving-platform frequency. Jump physics
+// (MOVE_SPEED/JUMP_FORCE/GRAVITY) cap max reachable gap/rise around ~200/~135px,
+// so generated values stay comfortably under that at every difficulty level.
+function generateLevel(n) {
+  const rng = mulberry32(n * 1000 + 7);
+  const difficulty = Math.min(n, TOTAL_LEVELS) / TOTAL_LEVELS;
+
+  const start = { x: -100, y: 560, w: 280, h: 40, type: 'static' };
+  const platforms = [start];
+  let prev = start;
+
+  const steps = Math.min(26, 13 + Math.floor(n / 9));
+  for (let i = 0; i < steps; i++) {
+    const dirSign = rng() < 0.5 ? -1 : 1;
+    const gap = lerp(50, 95, difficulty) + rng() * lerp(12, 25, difficulty);
+    const rise = lerp(28, 62, difficulty) + rng() * lerp(6, 20, difficulty);
+    let width = lerp(90, 55, difficulty) - rng() * 8;
+    width = Math.max(42, width);
+
+    const prevRight = prev.x + prev.w;
+    const newX = dirSign > 0 ? prevRight + gap : prev.x - gap - width;
+    const newY = prev.y - rise;
+
+    const movingChance = lerp(0.05, 0.35, difficulty);
+    const isMoving = i > 1 && rng() < movingChance;
+    const plat = { x: newX, y: newY, w: isMoving ? Math.max(width, 55) : width, h: 20, type: isMoving ? 'moving' : 'static' };
+    if (isMoving) {
+      plat.axis = rng() < 0.5 ? 'x' : 'y';
+      plat.range = lerp(30, 90, difficulty) + rng() * 18;
+      plat.speed = lerp(0.8, 1.9, difficulty) + rng() * 0.3;
+      plat.ox = newX;
+      plat.oy = newY;
+    }
+    platforms.push(plat);
+    prev = plat;
+  }
+
+  // goal platform
+  const dirSign = rng() < 0.5 ? -1 : 1;
+  const gap = lerp(45, 80, difficulty) + rng() * 15;
+  const rise = lerp(30, 60, difficulty) + rng() * 10;
+  const goalW = 140;
+  const prevRight = prev.x + prev.w;
+  const goalX = dirSign > 0 ? prevRight + gap : prev.x - gap - goalW;
+  const goalY = prev.y - rise;
+  platforms.push({ x: goalX, y: goalY, w: goalW, h: 28, type: 'goal' });
+
+  return {
+    platforms,
+    hazards: [],
+    start: { x: start.x + 40, y: start.y - 36 }
+  };
+}
+
+let platforms = [];
+let hazards = [];
+let currentLevel = 1;
+
+// fixed start position for the current level (falling always resets here — no checkpoints)
+let levelStart = { x: -20, y: 500 };
+
+// ---------- Player ----------
+const player = {
+  x: -20, y: 500, w: 28, h: 36,
+  vx: 0, vy: 0,
+  onGround: false,
+  standingOn: null,
+  facing: 1,
+  // jiggle physics: spring-based squash & stretch
+  squashX: 1, squashY: 1,
+  squashVelX: 0, squashVelY: 0,
+  tilt: 0
+};
+
+// dust particles (world-space) and camera shake, for landing/jump impact feel
+let dustParticles = [];
+let shakeAmount = 0;
+function spawnDust(x, y, count) {
+  for (let i = 0; i < count; i++) {
+    dustParticles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 2.6,
+      vy: -Math.random() * 1.6 - 0.3,
+      size: 2.5 + Math.random() * 3,
+      life: 1,
+      decay: 0.035 + Math.random() * 0.025
+    });
+  }
+}
+
+let deaths = 0;
+let won = false;
+let camX = 0, camY = 0;
+let gameReady = false;
+
+// ---------- Skins ----------
+// One skin unlocks every 10 levels completed (based on highest level actually
+// finished, not just visited via the level-select dropdown). 100 skins total:
+// 99 procedurally-colored ranks at levels 0,10,...,980, plus a special
+// rainbow "Legend" skin for beating all 1000 levels.
+const SKIN_ADJECTIVES = [
+  'Blazing', 'Shadow', 'Mystic', 'Frozen', 'Electric', 'Toxic', 'Royal',
+  'Cosmic', 'Savage', 'Golden', 'Crimson', 'Neon', 'Ghost', 'Storm', 'Solar',
+  'Lunar', 'Ember', 'Frost', 'Venom', 'Rustic', 'Chrome', 'Velvet', 'Obsidian', 'Radiant', 'Iron'
+];
+const SKIN_NOUNS = ['Fox', 'Wolf', 'Hawk', 'Viper', 'Falcon', 'Panther', 'Tiger', 'Dragon', 'Phoenix', 'Raven'];
+function buildSkins() {
+  const skins = [];
+  for (let i = 0; i < 99; i++) {
+    let name;
+    if (i === 0) {
+      name = 'Rookie';
+    } else {
+      const idx = i - 1;
+      const adj = SKIN_ADJECTIVES[idx % SKIN_ADJECTIVES.length];
+      const noun = SKIN_NOUNS[Math.floor(idx / SKIN_ADJECTIVES.length) % SKIN_NOUNS.length];
+      name = `${adj} ${noun}`;
+    }
+    const hue = Math.round((i * 137.508) % 360); // golden-angle spacing for varied colors
+    const lightness = i % 2 === 0 ? 45 : 58;
+    skins.push({
+      name,
+      unlock: i * 10,
+      body: `hsl(${hue}, 65%, ${lightness}%)`,
+      eye: lightness < 50 ? '#ffffff' : '#22333b'
+    });
+  }
+  skins.push({ name: 'Legend', unlock: 1000, body: 'rainbow', eye: '#ffffff' });
+  // exclusive skins — earned by ranking in the top 3 of a leaderboard, not by level
+  skins.push({ name: 'Peak Champion', exclusiveType: 'level', body: 'gold', eye: '#3a2a00' });
+  skins.push({ name: 'Flash Champion', exclusiveType: 'speed', body: 'flash', eye: '#00303a' });
+  return skins;
+}
+const SKINS = buildSkins();
+let highestLevelCompleted = 0;
+let currentSkinIndex = 0;
+// leaderboard-rank-earned skins the player has unlocked ('level' and/or 'speed')
+let unlockedExclusiveSkins = new Set();
+
+function isSkinUnlocked(skin) {
+  if (skin.exclusiveType) return unlockedExclusiveSkins.has(skin.exclusiveType);
+  return highestLevelCompleted >= skin.unlock;
+}
+
+function renderSkinGrid() {
+  const grid = document.getElementById('skinGrid');
+  grid.innerHTML = '';
+  SKINS.forEach((skin, i) => {
+    const unlocked = isSkinUnlocked(skin);
+    const card = document.createElement('div');
+    card.className = 'skinCard' + (i === currentSkinIndex ? ' selected' : '') + (unlocked ? '' : ' locked');
+    const swatch = document.createElement('div');
+    swatch.className = 'skinSwatch';
+    if (skin.body === 'rainbow') {
+      swatch.style.background = 'linear-gradient(135deg,#e63946,#ffb703,#2a9d8f,#48cae4,#6d597a)';
+    } else if (skin.body === 'gold') {
+      swatch.style.background = 'linear-gradient(135deg,#8a6d1f,#fff4c2,#8a6d1f)';
+    } else if (skin.body === 'flash') {
+      swatch.style.background = 'linear-gradient(135deg,#00303a,#7ee8fa,#00303a)';
+    } else {
+      swatch.style.background = skin.body;
+    }
+    if (!unlocked) {
+      swatch.innerHTML = '<span class="lockIcon">🔒</span>';
+    }
+    const name = document.createElement('div');
+    name.className = 'skinName';
+    name.textContent = skin.name;
+    card.appendChild(swatch);
+    card.appendChild(name);
+    if (!unlocked) {
+      const req = document.createElement('div');
+      req.className = 'skinReq';
+      req.textContent = skin.exclusiveType
+        ? (skin.exclusiveType === 'level' ? 'Top 3 · Level 🏆' : 'Top 3 · Speed ⏱')
+        : 'Lvl ' + skin.unlock;
+      card.appendChild(req);
+    }
+    if (unlocked) {
+      card.addEventListener('click', () => {
+        currentSkinIndex = i;
+        renderSkinGrid();
+      });
+    }
+    grid.appendChild(card);
+  });
+}
+
+let toastTimer = null;
+function showToast(text) {
+  const toast = document.getElementById('skinToast');
+  toast.textContent = text;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+}
+
+function registerLevelCompletion(levelNum) {
+  if (levelNum <= highestLevelCompleted) return;
+  const levelSkins = SKINS.filter(s => !s.exclusiveType);
+  const previousUnlocked = levelSkins.filter(isSkinUnlocked).length;
+  highestLevelCompleted = levelNum;
+  const newlyUnlocked = levelSkins.filter(isSkinUnlocked).length - previousUnlocked;
+  if (newlyUnlocked > 0) {
+    const skin = levelSkins.filter(isSkinUnlocked).pop();
+    showToast('🎉 New skin unlocked: ' + skin.name + '!');
+  }
+  if (loggedInUser) {
+    pushLeaderboardScoreQuietly();
+    checkExclusiveSkinUnlocks();
+  }
+}
+
+document.getElementById('openSkins').addEventListener('click', () => {
+  renderSkinGrid();
+  document.getElementById('skinModal').style.display = 'flex';
+  paused = true;
+});
+document.getElementById('closeSkins').addEventListener('click', () => {
+  document.getElementById('skinModal').style.display = 'none';
+  paused = false;
+});
+
+// ---------- Save code system (fully offline — no server/storage needed) ----------
+// Your username, password, and progress are packed into a code you copy
+// yourself. Pasting it back in (with the matching username/password) restores
+// progress. This is a casual save mechanism, not real account security.
+let loggedInUser = null;
+let loggedInPassword = null;
+// Tracks usernames created or restored THIS session only — there's no server,
+// so this can't catch a duplicate from a previous visit or another device.
+const seenUsernames = new Set();
+
+function simpleHash(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(16);
+}
+function generateSaveCode(username, password, progress) {
+  const payload = {
+    u: username,
+    h: simpleHash(password),
+    hl: progress.highestLevelCompleted,
+    sk: progress.currentSkinIndex,
+    ce: progress.exclusiveSkins || []
+  };
+  return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+}
+function parseSaveCode(code) {
+  try {
+    return JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
+  } catch (e) { return null; }
+}
+
+function updateAccountHud() {
+  document.getElementById('hudAccount').textContent = loggedInUser ? ` · 👤 ${loggedInUser}` : '';
+}
+function refreshCodeOutput() {
+  if (!loggedInUser) return;
+  const code = generateSaveCode(loggedInUser, loggedInPassword, {
+    highestLevelCompleted,
+    currentSkinIndex,
+    exclusiveSkins: Array.from(unlockedExclusiveSkins)
+  });
+  document.getElementById('accCodeOutput').value = code;
+}
+function showAccountLoggedInView() {
+  document.getElementById('accountLoggedOut').style.display = 'none';
+  document.getElementById('accountLoggedIn').style.display = 'block';
+  document.getElementById('accWhoami').textContent = loggedInUser;
+  document.getElementById('accountTitle').textContent = 'Your Save';
+  document.getElementById('accLoggedInMsg').textContent = '';
+  refreshCodeOutput();
+  updateAccountHud();
+}
+function showAccountLoggedOutView() {
+  document.getElementById('accountLoggedOut').style.display = 'block';
+  document.getElementById('accountLoggedIn').style.display = 'none';
+  document.getElementById('accUsername').value = '';
+  document.getElementById('accPassword').value = '';
+  document.getElementById('accCodeInput').value = '';
+  document.getElementById('accFormMsg').textContent = '';
+  document.getElementById('accountTitle').textContent = 'Save Progress';
+  updateAccountHud();
+}
+function setAccFormMsg(text, kind) {
+  const el = document.getElementById('accFormMsg');
+  el.textContent = text;
+  el.className = 'formMsg' + (kind ? ' ' + kind : '');
+}
+
+function handleCreateSave() {
+  const uname = document.getElementById('accUsername').value.trim();
+  const pw = document.getElementById('accPassword').value;
+  if (!uname || !pw) { setAccFormMsg('Enter a username and password.', 'error'); return; }
+  if (seenUsernames.has(uname.toLowerCase())) {
+    setAccFormMsg('Username already used — pick another, or restore your save with it.', 'error');
+    return;
+  }
+  seenUsernames.add(uname.toLowerCase());
+  loggedInUser = uname;
+  loggedInPassword = pw;
+  showAccountLoggedInView();
+}
+function handleRestoreSave() {
+  const uname = document.getElementById('accUsername').value.trim();
+  const pw = document.getElementById('accPassword').value;
+  const code = document.getElementById('accCodeInput').value;
+  if (!uname || !pw || !code.trim()) { setAccFormMsg('Enter your username, password, and save code.', 'error'); return; }
+  const data = parseSaveCode(code);
+  if (!data) { setAccFormMsg('That save code looks invalid.', 'error'); return; }
+  if (!data.u || data.u.toLowerCase() !== uname.toLowerCase()) { setAccFormMsg('That code doesn\'t match this username.', 'error'); return; }
+  if (data.h !== simpleHash(pw)) { setAccFormMsg('Incorrect password for this save code.', 'error'); return; }
+  seenUsernames.add(data.u.toLowerCase());
+  loggedInUser = data.u;
+  loggedInPassword = pw;
+  highestLevelCompleted = data.hl || 0;
+  currentSkinIndex = data.sk || 0;
+  unlockedExclusiveSkins = new Set(Array.isArray(data.ce) ? data.ce : []);
+  elapsedMs = 0;
+  gameCompleted = false;
+  document.getElementById('hudTimer').textContent = formatTime(0);
+  showAccountLoggedInView();
+  loadLevel(Math.min(highestLevelCompleted + 1, TOTAL_LEVELS));
+}
+
+document.getElementById('openAccount').addEventListener('click', () => {
+  if (loggedInUser) refreshCodeOutput();
+  document.getElementById('accountModal').style.display = 'flex';
+  paused = true;
+});
+document.getElementById('closeAccount').addEventListener('click', () => {
+  document.getElementById('accountModal').style.display = 'none';
+  paused = false;
+});
+document.getElementById('accCreate').addEventListener('click', handleCreateSave);
+document.getElementById('accRestore').addEventListener('click', handleRestoreSave);
+document.getElementById('accLogout').addEventListener('click', () => {
+  loggedInUser = null;
+  loggedInPassword = null;
+  showAccountLoggedOutView();
+});
+document.getElementById('accCopyCode').addEventListener('click', async () => {
+  const box = document.getElementById('accCodeOutput');
+  const el = document.getElementById('accLoggedInMsg');
+  el.className = 'formMsg';
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(box.value);
+    } else {
+      box.select();
+      document.execCommand('copy');
+    }
+    el.textContent = 'Copied!';
+    el.classList.add('success');
+  } catch (e) {
+    box.select();
+    el.textContent = 'Couldn\'t auto-copy — text is selected, press Ctrl/Cmd+C.';
+  }
+});
+
+// ---------- Leaderboard (shared storage — only works inside Claude's live preview) ----------
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function setLbMsg(text, kind) {
+  const el = document.getElementById('lbMsg');
+  el.textContent = text;
+  el.className = 'formMsg' + (kind ? ' ' + kind : '');
+}
+let lbMode = 'level'; // 'level' or 'speed'
+function lbPrefix() { return lbMode === 'speed' ? 'speedrun:' : 'leaderboard:'; }
+function setLbTabs() {
+  document.getElementById('lbTabLevel').classList.toggle('active', lbMode === 'level');
+  document.getElementById('lbTabSpeed').classList.toggle('active', lbMode === 'speed');
+  document.getElementById('lbSubmit').textContent = lbMode === 'speed' ? 'Submit My Time' : 'Submit My Score';
+  document.getElementById('lbSubtext').textContent = lbMode === 'speed'
+    ? 'Fastest full-game (all 1000 levels) completions.'
+    : 'Top players by highest level reached.';
+}
+async function fetchLeaderboardEntries(prefix, mode) {
+  try {
+    const listRes = await window.storage.list(prefix, true);
+    if (!listRes || !listRes.keys) return [];
+    const entries = [];
+    for (const key of listRes.keys) {
+      try {
+        const res = await window.storage.get(key, true);
+        if (res && res.value) entries.push(JSON.parse(res.value));
+      } catch (e) { /* skip unreadable entry */ }
+    }
+    if (mode === 'speed') entries.sort((a, b) => (a.timeMs ?? Infinity) - (b.timeMs ?? Infinity));
+    else entries.sort((a, b) => (b.level || 0) - (a.level || 0));
+    return entries;
+  } catch (e) {
+    return null;
+  }
+}
+async function renderLeaderboard() {
+  const listEl = document.getElementById('lbList');
+  setLbTabs();
+  if (!window.storage) {
+    listEl.innerHTML = '';
+    document.getElementById('lbSubtext').textContent =
+      'The leaderboard needs Claude\'s live preview to sync between players — it isn\'t available in this view (e.g. a downloaded file).';
+    document.getElementById('lbSubmit').disabled = true;
+    document.getElementById('lbRefresh').disabled = true;
+    return;
+  }
+  listEl.innerHTML = '<div class="lbEmpty">Loading...</div>';
+  const allEntries = await fetchLeaderboardEntries(lbPrefix(), lbMode);
+  if (allEntries === null) {
+    listEl.innerHTML = '<div class="lbEmpty">Could not load the leaderboard — try refreshing.</div>';
+    return;
+  }
+  const entries = allEntries.slice(0, 25);
+  if (entries.length === 0) {
+    listEl.innerHTML = lbMode === 'speed'
+      ? '<div class="lbEmpty">No completions yet — beat all 1000 levels to be the first!</div>'
+      : '<div class="lbEmpty">No scores yet — be the first to submit!</div>';
+    return;
+  }
+  listEl.innerHTML = '';
+  entries.forEach((e, i) => {
+    const row = document.createElement('div');
+    const isMe = loggedInUser && e.name && e.name.toLowerCase() === loggedInUser.toLowerCase();
+    row.className = 'lbRow' + (isMe ? ' me' : '') + (i < 3 ? ' top3' : '');
+    const rankIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i + 1);
+    const valueText = lbMode === 'speed' ? formatTime(e.timeMs || 0) : 'Lvl ' + (e.level || 0);
+    row.innerHTML = `<span class="lbRank">${rankIcon}</span><span class="lbName">${escapeHtml(e.name || '?')}</span><span class="lbLevel">${valueText}</span>`;
+    listEl.appendChild(row);
+  });
+}
+async function submitScore() {
+  if (!loggedInUser) {
+    setLbMsg('Create or restore a save first (👤) so you have a username to submit under.', 'error');
+    return;
+  }
+  if (!window.storage) {
+    setLbMsg('The leaderboard isn\'t available in this view.', 'error');
+    return;
+  }
+  if (lbMode === 'speed' && !gameCompleted) {
+    setLbMsg('Beat all 1000 levels first to submit a time.', 'error');
+    return;
+  }
+  setLbMsg('Submitting...', '');
+  try {
+    const key = lbPrefix() + loggedInUser.toLowerCase();
+    if (lbMode === 'speed') {
+      let best = elapsedMs;
+      try {
+        const existing = await window.storage.get(key, true);
+        if (existing && existing.value) {
+          const prev = JSON.parse(existing.value);
+          if (prev.timeMs && prev.timeMs < best) best = prev.timeMs;
+        }
+      } catch (e) { /* no existing entry */ }
+      await window.storage.set(key, JSON.stringify({ name: loggedInUser, timeMs: best }), true);
+    } else {
+      await window.storage.set(key, JSON.stringify({ name: loggedInUser, level: highestLevelCompleted }), true);
+    }
+    setLbMsg('Submitted!', 'success');
+    renderLeaderboard();
+    checkExclusiveSkinUnlocks();
+  } catch (e) {
+    setLbMsg('Submit failed — try again.', 'error');
+  }
+}
+// best-effort silent updates — the manual submit button remains the reliable path
+async function pushLeaderboardScoreQuietly() {
+  if (!loggedInUser || !window.storage) return;
+  try {
+    await window.storage.set('leaderboard:' + loggedInUser.toLowerCase(), JSON.stringify({ name: loggedInUser, level: highestLevelCompleted }), true);
+  } catch (e) { /* silent */ }
+}
+async function pushSpeedrunScoreQuietly() {
+  if (!loggedInUser || !window.storage) return;
+  try {
+    const key = 'speedrun:' + loggedInUser.toLowerCase();
+    let best = elapsedMs;
+    try {
+      const existing = await window.storage.get(key, true);
+      if (existing && existing.value) {
+        const prev = JSON.parse(existing.value);
+        if (prev.timeMs && prev.timeMs < best) best = prev.timeMs;
+      }
+    } catch (e) { /* no existing entry */ }
+    await window.storage.set(key, JSON.stringify({ name: loggedInUser, timeMs: best }), true);
+  } catch (e) { /* silent */ }
+}
+// checks whether the logged-in player is currently top 3 on either leaderboard
+// and permanently grants the matching exclusive skin the first time it's true
+async function checkExclusiveSkinUnlocks() {
+  if (!loggedInUser || !window.storage) return;
+  const uLower = loggedInUser.toLowerCase();
+  const inTop3 = entries => Array.isArray(entries) && entries.slice(0, 3).some(e => e.name && e.name.toLowerCase() === uLower);
+
+  if (!unlockedExclusiveSkins.has('level')) {
+    const levelEntries = await fetchLeaderboardEntries('leaderboard:', 'level');
+    if (inTop3(levelEntries)) {
+      unlockedExclusiveSkins.add('level');
+      showToast('🏆 Exclusive skin unlocked: Peak Champion!');
+    }
+  }
+  if (!unlockedExclusiveSkins.has('speed')) {
+    const speedEntries = await fetchLeaderboardEntries('speedrun:', 'speed');
+    if (inTop3(speedEntries)) {
+      unlockedExclusiveSkins.add('speed');
+      showToast('⚡ Exclusive skin unlocked: Flash Champion!');
+    }
+  }
+}
+
+document.getElementById('openLeaderboard').addEventListener('click', () => {
+  document.getElementById('leaderboardModal').style.display = 'flex';
+  paused = true;
+  setLbMsg('', '');
+  checkExclusiveSkinUnlocks();
+  renderLeaderboard();
+});
+document.getElementById('closeLeaderboard').addEventListener('click', () => {
+  document.getElementById('leaderboardModal').style.display = 'none';
+  paused = false;
+});
+document.getElementById('lbSubmit').addEventListener('click', submitScore);
+document.getElementById('lbRefresh').addEventListener('click', renderLeaderboard);
+document.getElementById('lbTabLevel').addEventListener('click', () => {
+  lbMode = 'level';
+  setLbMsg('', '');
+  renderLeaderboard();
+});
+document.getElementById('lbTabSpeed').addEventListener('click', () => {
+  lbMode = 'speed';
+  setLbMsg('', '');
+  renderLeaderboard();
+});
+
+// ---------- Win screen / confetti ----------
+const confettiCanvas = document.getElementById('confettiCanvas');
+const confettiCtx = confettiCanvas.getContext('2d');
+let confettiParticles = [];
+let confettiActive = false;
+
+function resizeConfetti() {
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+  if (confettiActive) drawConfetti();
+}
+resizeConfetti();
+window.addEventListener('resize', resizeConfetti);
+
+function spawnConfetti(count) {
+  const colors = ['#ffb703', '#e76f51', '#2a9d8f', '#e63946', '#6d597a', '#f4a261', '#ffd166', '#06d6a0'];
+  for (let i = 0; i < count; i++) {
+    confettiParticles.push({
+      x: Math.random() * window.innerWidth,
+      y: -20 - Math.random() * window.innerHeight * 0.6,
+      vx: (Math.random() - 0.5) * 2,
+      vy: 2 + Math.random() * 3,
+      size: 6 + Math.random() * 6,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rot: Math.random() * Math.PI * 2,
+      vr: (Math.random() - 0.5) * 0.2
+    });
+  }
+}
+function updateConfetti() {
+  for (const p of confettiParticles) {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy = Math.min(p.vy + 0.02, 5);
+    p.rot += p.vr;
+    if (p.y > window.innerHeight + 20) {
+      p.y = -20;
+      p.x = Math.random() * window.innerWidth;
+    }
+  }
+}
+function drawConfetti() {
+  confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  for (const p of confettiParticles) {
+    confettiCtx.save();
+    confettiCtx.translate(p.x, p.y);
+    confettiCtx.rotate(p.rot);
+    confettiCtx.fillStyle = p.color;
+    confettiCtx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+    confettiCtx.restore();
+  }
+}
+// ---------- Game timer (ticks while actively playing; pauses with the game) ----------
+let elapsedMs = 0;
+let lastFrameTime = null;
+let gameCompleted = false;
+function formatTime(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
+  const ss = String(s).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+function showWinScreen() {
+  gameCompleted = true;
+  document.getElementById('winTime').textContent = formatTime(elapsedMs);
+  document.getElementById('winDeaths').textContent = deaths;
+  document.getElementById('winScreen').style.display = 'flex';
+  confettiParticles = [];
+  spawnConfetti(140);
+  confettiActive = true;
+  paused = true;
+  if (loggedInUser) {
+    pushSpeedrunScoreQuietly().then(() => checkExclusiveSkinUnlocks());
+  }
+}
+function hideWinScreen() {
+  document.getElementById('winScreen').style.display = 'none';
+  confettiActive = false;
+  confettiParticles = [];
+  confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+}
+
+function nextSkinProgress() {
+  const nextSkin = SKINS.find(s => s.unlock > highestLevelCompleted);
+  if (!nextSkin) return null;
+  const idx = SKINS.indexOf(nextSkin);
+  const prevUnlock = idx > 0 ? SKINS[idx - 1].unlock : 0;
+  const interval = nextSkin.unlock - prevUnlock;
+  const pct = Math.max(0, Math.min(100, ((highestLevelCompleted - prevUnlock) / interval) * 100));
+  return { skin: nextSkin, pct };
+}
+
+function showLevelComplete(n) {
+  document.getElementById('lcTitle').textContent = `Level ${n} Complete!`;
+  document.getElementById('lcSub').textContent = `On to Level ${n + 1}.`;
+  const label = document.getElementById('lcSkinLabel');
+  const fill = document.getElementById('lcSkinBarFill');
+  const info = nextSkinProgress();
+  if (info) {
+    label.textContent = `Next skin — ${info.skin.name}: ${Math.round(info.pct)}%`;
+    fill.style.width = info.pct + '%';
+  } else {
+    label.textContent = 'All skins unlocked!';
+    fill.style.width = '100%';
+  }
+  document.getElementById('levelCompleteScreen').style.display = 'flex';
+  confettiParticles = [];
+  spawnConfetti(70);
+  confettiActive = true;
+  paused = true;
+}
+function hideLevelComplete() {
+  document.getElementById('levelCompleteScreen').style.display = 'none';
+  confettiActive = false;
+  confettiParticles = [];
+  confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+}
+
+function loadLevel(n) {
+  const maxUnlocked = highestLevelCompleted + 1;
+  if (n > maxUnlocked) {
+    showToast(`Beat Level ${maxUnlocked} first!`);
+    document.getElementById('levelInput').value = String(currentLevel);
+    return;
+  }
+  currentLevel = Math.max(1, Math.min(TOTAL_LEVELS, n));
+  const lvl = generateLevel(currentLevel);
+  platforms = lvl.platforms;
+  hazards = lvl.hazards;
+  levelStart = { x: lvl.start.x, y: lvl.start.y };
+  player.x = lvl.start.x;
+  player.y = lvl.start.y;
+  player.vx = 0;
+  player.vy = 0;
+  player.onGround = false;
+  player.standingOn = null;
+  player.squashX = 1;
+  player.squashY = 1;
+  player.squashVelX = 0;
+  player.squashVelY = 0;
+  player.tilt = 0;
+  dustParticles = [];
+  shakeAmount = 0;
+  won = false;
+  camX = player.x - canvas.width / 2;
+  camY = player.y - canvas.height / 2;
+  document.getElementById('levelNum').textContent = currentLevel;
+  document.getElementById('levelInput').value = String(currentLevel);
+  hideMsg();
+  hideWinScreen();
+  hideLevelComplete();
+}
+
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (e.key === ' ' || e.key.startsWith('Arrow')) e.preventDefault();
+  if (e.key === 'r' || e.key === 'R') resetToStart(true);
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function updateMovingPlatforms(t) {
+  for (const p of platforms) {
+    if (p.type === 'moving') {
+      const prevX = p.x, prevY = p.y;
+      if (p.axis === 'x') {
+        p.x = p.ox + Math.sin(t * 0.001 * p.speed) * p.range;
+      } else {
+        p.y = p.oy + Math.sin(t * 0.001 * p.speed) * p.range;
+      }
+      p._dx = p.x - prevX;
+      p._dy = p.y - prevY;
+    }
+  }
+}
+
+function resetToStart(manual) {
+  player.x = levelStart.x;
+  player.y = levelStart.y;
+  player.vx = 0;
+  player.vy = 0;
+  player.squashX = 1;
+  player.squashY = 1;
+  player.squashVelX = 0;
+  player.squashVelY = 0;
+  dustParticles = [];
+  if (!manual) {
+    deaths++;
+    document.getElementById('deaths').textContent = deaths;
+    showMsg('You fell!', 'Back to the start of the level.', 'Continue');
+  }
+}
+
+function showMsg(title, sub, btnText) {
+  const msg = document.getElementById('msg');
+  document.getElementById('msgTitle').textContent = title;
+  document.getElementById('msgSub').textContent = sub;
+  document.getElementById('msgBtn').textContent = btnText;
+  msg.style.display = 'block';
+  paused = true;
+}
+function hideMsg() {
+  document.getElementById('msg').style.display = 'none';
+  paused = false;
+}
+document.getElementById('msgBtn').addEventListener('click', () => {
+  if (won) {
+    if (currentLevel < TOTAL_LEVELS) {
+      loadLevel(currentLevel + 1);
+    } else {
+      loadLevel(currentLevel); // replay final level
+    }
+  } else {
+    hideMsg();
+  }
+});
+
+document.getElementById('winReplayBtn').addEventListener('click', () => loadLevel(TOTAL_LEVELS));
+document.getElementById('lcNextBtn').addEventListener('click', () => loadLevel(currentLevel + 1));
+document.getElementById('winRestartBtn').addEventListener('click', () => {
+  deaths = 0;
+  document.getElementById('deaths').textContent = 0;
+  elapsedMs = 0;
+  gameCompleted = false;
+  document.getElementById('hudTimer').textContent = formatTime(0);
+  loadLevel(1);
+});
+
+const levelInput = document.getElementById('levelInput');
+function goToTypedLevel() {
+  const n = parseInt(levelInput.value, 10);
+  if (!isNaN(n)) loadLevel(n);
+}
+document.getElementById('goLevel').addEventListener('click', goToTypedLevel);
+levelInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') goToTypedLevel(); });
+document.getElementById('prevLevel').addEventListener('click', () => loadLevel(currentLevel - 1));
+document.getElementById('nextLevel').addEventListener('click', () => loadLevel(currentLevel + 1));
+document.getElementById('restartLevel').addEventListener('click', () => loadLevel(currentLevel));
+
+// mobile / click on-screen controls — hold to move or jump, works for touch and mouse
+function bindHoldButton(el, keyName) {
+  const press = (e) => { e.preventDefault(); keys[keyName] = true; };
+  const release = (e) => { e.preventDefault(); keys[keyName] = false; };
+  el.addEventListener('pointerdown', press);
+  el.addEventListener('pointerup', release);
+  el.addEventListener('pointerleave', release);
+  el.addEventListener('pointercancel', release);
+}
+bindHoldButton(document.getElementById('btnLeft'), 'ArrowLeft');
+bindHoldButton(document.getElementById('btnRight'), 'ArrowRight');
+bindHoldButton(document.getElementById('btnJump'), 'ArrowUp');
+
+let paused = false;
+
+function update(t) {
+  if (paused || !gameReady) return;
+  updateMovingPlatforms(t);
+
+  // carry player with whatever moving platform they were standing on,
+  // BEFORE any collision checks run this frame (fixes phantom side-collisions
+  // that happen when the platform moves out from under the player first)
+  if (player.standingOn && player.standingOn.type === 'moving') {
+    player.x += player.standingOn._dx || 0;
+    player.y += player.standingOn._dy || 0;
+  }
+
+  // horizontal input
+  if (keys['ArrowLeft'] || keys['a'] || keys['A']) { player.vx = -MOVE_SPEED; player.facing = -1; }
+  else if (keys['ArrowRight'] || keys['d'] || keys['D']) { player.vx = MOVE_SPEED; player.facing = 1; }
+  else { player.vx *= 0.75; }
+
+  // jump
+  if ((keys['ArrowUp'] || keys['w'] || keys['W'] || keys[' ']) && player.onGround) {
+    player.vy = JUMP_FORCE;
+    player.onGround = false;
+    player.standingOn = null;
+    player.squashX = 0.7;
+    player.squashY = 1.35;
+    player.squashVelX = 0;
+    player.squashVelY = 0;
+    spawnDust(player.x + player.w / 2, player.y + player.h, 5);
+  }
+
+  player.vy += GRAVITY;
+  if (player.vy > 16) player.vy = 16;
+
+  // move horizontally, then resolve collisions (skip the platform we're
+  // riding — carry-over above already accounted for its movement)
+  player.x += player.vx;
+  resolveCollisions('x', player.standingOn);
+
+  const preLandVy = player.vy;
+  player.y += player.vy;
+  player.onGround = false;
+  player.standingOn = null;
+  resolveCollisions('y', null, preLandVy);
+
+  // fell too far off the level -> death, back to the start
+  if (player.y > levelStart.y + 500) {
+    resetToStart(false);
+  }
+
+  // hazards
+  const pRect = { x: player.x, y: player.y, w: player.w, h: player.h };
+  for (const hz of hazards) {
+    if (rectsOverlap(pRect, hz)) {
+      resetToStart(false);
+      break;
+    }
+  }
+
+  // goal check
+  for (const p of platforms) {
+    if (p.type === 'goal' && rectsOverlap(pRect, p) && !won) {
+      won = true;
+      registerLevelCompletion(currentLevel);
+      if (currentLevel < TOTAL_LEVELS) {
+        showLevelComplete(currentLevel);
+      } else {
+        showWinScreen();
+      }
+      break;
+    }
+  }
+
+  // camera follow
+  camX += ((player.x - canvas.width / 2) - camX) * 0.1;
+  camY += ((player.y - canvas.height / 2) - camY) * 0.1;
+
+  // jiggle physics: spring the squash/stretch back toward normal each frame
+  const springStiffness = 0.35, springDamping = 0.72;
+  player.squashVelX += (1 - player.squashX) * springStiffness;
+  player.squashVelX *= springDamping;
+  player.squashX += player.squashVelX;
+  player.squashVelY += (1 - player.squashY) * springStiffness;
+  player.squashVelY *= springDamping;
+  player.squashY += player.squashVelY;
+
+  // lean slightly in the direction of travel
+  const targetTilt = Math.max(-1, Math.min(1, player.vx / MOVE_SPEED)) * 0.15;
+  player.tilt += (targetTilt - player.tilt) * 0.2;
+
+  // dust particles
+  for (let i = dustParticles.length - 1; i >= 0; i--) {
+    const d = dustParticles[i];
+    d.x += d.vx;
+    d.y += d.vy;
+    d.vy += 0.08;
+    d.life -= d.decay;
+    if (d.life <= 0) dustParticles.splice(i, 1);
+  }
+
+  // camera shake decay
+  shakeAmount *= 0.85;
+  if (shakeAmount < 0.05) shakeAmount = 0;
+}
+
+function resolveCollisions(axis, skipPlatform, impactVy) {
+  const pRect = { x: player.x, y: player.y, w: player.w, h: player.h };
+  for (const p of platforms) {
+    if (p.type === 'goal') continue;
+    if (p === skipPlatform) continue;
+    if (!rectsOverlap(pRect, p)) continue;
+    if (axis === 'x') {
+      if (player.vx > 0) player.x = p.x - player.w;
+      else if (player.vx < 0) player.x = p.x + p.w;
+      player.vx = 0;
+    } else {
+      if (player.vy > 0) {
+        player.y = p.y - player.h;
+        player.vy = 0;
+        player.onGround = true;
+        player.standingOn = (p.type === 'moving') ? p : null;
+        if (impactVy > 3) {
+          const impact = Math.min(impactVy, 16);
+          player.squashX = 1 + impact * 0.045;
+          player.squashY = 1 - impact * 0.035;
+          player.squashVelX = 0;
+          player.squashVelY = 0;
+          spawnDust(player.x + player.w / 2, player.y + player.h, Math.round(4 + impact));
+          shakeAmount = Math.min(9, impact * 0.7);
+        }
+      } else if (player.vy < 0) {
+        player.y = p.y + p.h;
+        player.vy = 0;
+      }
+    }
+    pRect.x = player.x;
+    pRect.y = player.y;
+  }
+}
+
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // sun — fixed in screen space, unaffected by camera
+  const sunGrad = ctx.createRadialGradient(canvas.width - 100, 90, 5, canvas.width - 100, 90, 90);
+  sunGrad.addColorStop(0, 'rgba(255,246,200,0.95)');
+  sunGrad.addColorStop(1, 'rgba(255,246,200,0)');
+  ctx.fillStyle = sunGrad;
+  ctx.beginPath();
+  ctx.arc(canvas.width - 100, 90, 90, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff6c8';
+  ctx.beginPath();
+  ctx.arc(canvas.width - 100, 90, 32, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.save();
+  const shx = shakeAmount > 0.1 ? (Math.random() - 0.5) * shakeAmount : 0;
+  const shy = shakeAmount > 0.1 ? (Math.random() - 0.5) * shakeAmount : 0;
+  ctx.translate(-camX + shx, -camY + shy);
+
+  // distant parallax mountains
+  ctx.fillStyle = 'rgba(120,140,160,0.35)';
+  for (let i = 0; i < 5; i++) {
+    const baseX = i * 500 - ((camX * 0.15) % 2500);
+    const baseY = camY + canvas.height * 0.55;
+    ctx.beginPath();
+    ctx.moveTo(baseX - 150, baseY + 200);
+    ctx.lineTo(baseX + 80, baseY - 120);
+    ctx.lineTo(baseX + 280, baseY + 200);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // clouds (lighter parallax layer)
+  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  for (let i = 0; i < 6; i++) {
+    const cx = (i * 400) - (camX * 0.3 % 2400);
+    const cy = camY + 100 + (i % 3) * 60;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 40, 20, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + 24, cy + 4, 26, 15, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // platforms
+  for (const p of platforms) {
+    if (p.type === 'goal') {
+      roundRect(ctx, p.x, p.y, p.w, p.h, 8);
+      const goalGrad = ctx.createLinearGradient(0, p.y, 0, p.y + p.h);
+      goalGrad.addColorStop(0, '#3fc0ac');
+      goalGrad.addColorStop(1, '#1f8577');
+      ctx.fillStyle = goalGrad;
+      ctx.fill();
+
+      // waving flag
+      const poleX = p.x + p.w / 2;
+      const poleTop = p.y - 50;
+      ctx.strokeStyle = '#8d5b3a';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(poleX, p.y);
+      ctx.lineTo(poleX, poleTop);
+      ctx.stroke();
+      const wave = Math.sin(Date.now() / 220) * 5;
+      ctx.fillStyle = '#e76f51';
+      ctx.beginPath();
+      ctx.moveTo(poleX, poleTop);
+      ctx.quadraticCurveTo(poleX + 20, poleTop - 6 + wave, poleX + 34, poleTop + 4);
+      ctx.quadraticCurveTo(poleX + 18, poleTop + 10 + wave, poleX, poleTop + 16);
+      ctx.closePath();
+      ctx.fill();
+
+      // sparkles around the goal
+      for (let i = 0; i < 3; i++) {
+        const ang = Date.now() / 500 + i * (Math.PI * 2 / 3);
+        const sx = poleX + Math.cos(ang) * 26;
+        const sy = poleTop - 10 + Math.sin(ang) * 12;
+        ctx.fillStyle = `rgba(255,214,102,${0.5 + 0.5 * Math.sin(Date.now() / 300 + i)})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (p.type === 'moving') {
+      roundRect(ctx, p.x, p.y, p.w, p.h, 6);
+      const mGrad = ctx.createLinearGradient(0, p.y, 0, p.y + p.h);
+      mGrad.addColorStop(0, '#ffb37a');
+      mGrad.addColorStop(1, '#e8894f');
+      ctx.fillStyle = mGrad;
+      ctx.fill();
+      ctx.strokeStyle = '#e76f51';
+      ctx.lineWidth = 2;
+      roundRect(ctx, p.x + 1, p.y + 1, p.w - 2, p.h - 2, 5);
+      ctx.stroke();
+    } else {
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.18)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetY = 4;
+      roundRect(ctx, p.x, p.y, p.w, p.h, 7);
+      const sGrad = ctx.createLinearGradient(0, p.y, 0, p.y + p.h);
+      sGrad.addColorStop(0, '#8a72a0');
+      sGrad.addColorStop(1, '#5c4a6d');
+      ctx.fillStyle = sGrad;
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      roundRect(ctx, p.x + 3, p.y + 2, p.w - 6, 5, 3);
+      ctx.fill();
+    }
+  }
+
+  // hazards
+  ctx.fillStyle = '#e63946';
+  for (const hz of hazards) {
+    // spike triangles
+    const count = Math.max(1, Math.floor(hz.w / 20));
+    for (let i = 0; i < count; i++) {
+      const sx = hz.x + i * (hz.w / count);
+      ctx.beginPath();
+      ctx.moveTo(sx, hz.y + hz.h);
+      ctx.lineTo(sx + hz.w / count / 2, hz.y);
+      ctx.lineTo(sx + hz.w / count, hz.y + hz.h);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // dust particles (jump/landing puffs)
+  for (const d of dustParticles) {
+    ctx.fillStyle = `rgba(230,225,215,${Math.max(0, d.life) * 0.8})`;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.size * d.life, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // soft shadow under the player, fading with jump height above the last footing
+  const shadowScale = Math.max(0.4, 1 - Math.abs(player.vy) / 30);
+  ctx.fillStyle = `rgba(0,0,0,${0.22 * shadowScale})`;
+  ctx.beginPath();
+  ctx.ellipse(player.x + player.w / 2, player.y + player.h + 3, (player.w / 2) * shadowScale, 4 * shadowScale, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // player (colored by the currently selected skin, with squash/stretch jiggle)
+  const skin = SKINS[currentSkinIndex] || SKINS[0];
+  ctx.save();
+  ctx.translate(player.x + player.w / 2, player.y + player.h / 2);
+  ctx.scale(player.facing, 1);
+  ctx.rotate(player.tilt * player.facing);
+  ctx.scale(player.squashX, player.squashY);
+  const bw = player.w, bh = player.h;
+  if (skin.body === 'rainbow') {
+    const grad = ctx.createLinearGradient(-bw / 2, -bh / 2, bw / 2, bh / 2);
+    const t = (Date.now() / 800) % 1;
+    const hueStops = [0, 60, 120, 200, 280];
+    hueStops.forEach((h, idx) => grad.addColorStop(idx / (hueStops.length - 1), `hsl(${(h + t * 360) % 360},80%,55%)`));
+    ctx.fillStyle = grad;
+  } else if (skin.body === 'gold') {
+    const shimmer = 0.5 + 0.5 * Math.sin(Date.now() / 300);
+    ctx.fillStyle = `hsl(45, 85%, ${38 + shimmer * 30}%)`;
+  } else if (skin.body === 'flash') {
+    const shimmer = 0.5 + 0.5 * Math.sin(Date.now() / 130);
+    ctx.fillStyle = `hsl(195, 90%, ${42 + shimmer * 30}%)`;
+  } else {
+    ctx.fillStyle = skin.body;
+  }
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.25)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 2;
+  roundRect(ctx, -bw / 2, -bh / 2, bw, bh, 8);
+  ctx.fill();
+  ctx.restore();
+  // subtle top highlight for a rounder, glossier look
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  roundRect(ctx, -bw / 2 + 3, -bh / 2 + 3, bw - 6, bh * 0.35, 5);
+  ctx.fill();
+  // eye
+  ctx.fillStyle = skin.eye;
+  ctx.beginPath();
+  ctx.arc(bw / 6, -bh / 2 + 11, 3.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+let lastTime = 0;
+function loop(t) {
+  if (lastFrameTime === null) lastFrameTime = t;
+  const dt = Math.min(t - lastFrameTime, 100); // cap to avoid a huge jump after a backgrounded tab
+  lastFrameTime = t;
+  if (gameReady && !paused && !gameCompleted) {
+    elapsedMs += dt;
+    document.getElementById('hudTimer').textContent = formatTime(elapsedMs);
+  }
+  update(t);
+  draw();
+  if (confettiActive) {
+    updateConfetti();
+    drawConfetti();
+  }
+  requestAnimationFrame(loop);
+}
+
+const loadingTips = [
+  'Tip: ride moving platforms, don\'t fight them.',
+  'Tip: hold the jump button right as you leave a ledge.',
+  'Tip: falling sends you back to the start of the level.',
+  'Tip: R restarts the current level instantly.',
+  'Tip: vertical-moving platforms carry you up — just stand still.'
+];
+document.getElementById('loadingTip').textContent =
+  loadingTips[Math.floor(Math.random() * loadingTips.length)];
+
+function runLoadingSequence() {
+  const loadingScreen = document.getElementById('loadingScreen');
+  const barFill = document.getElementById('loadingBarFill');
+  requestAnimationFrame(() => { barFill.style.width = '100%'; });
+  setTimeout(() => {
+    loadingScreen.classList.add('fadeOut');
+    setTimeout(() => {
+      loadingScreen.style.display = 'none';
+      gameReady = true;
+    }, 500);
+  }, 1300);
+}
+
+loadLevel(1);
+requestAnimationFrame(loop);
+runLoadingSequence();
+</script>
+</body>
+</html>
